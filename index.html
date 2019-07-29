@@ -1,0 +1,136 @@
+<!doctype html>
+<html class="no-js" lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mapbox-gl/0.53.1/mapbox-gl.css" />
+    <script src="https://code.jquery.com/jquery-3.4.0.js" integrity="sha256-DYZMCC8HTC+QDr5QNaIcfR7VSPtcISykd+6eSmBW5qo=" crossorigin="anonymous"></script>
+    <style type="text/css">
+    html, body {
+      padding: 0;
+      margin: 0;
+      width: 100%;
+      height: 100%;
+    }
+    #panel {
+      position: absolute;
+      background: #ffffffaa;
+      top: 0;
+      left: 0;
+      margin: 10px;
+      padding: 10px;
+      font-size: 38px;
+      line-height: 1;
+      width:150px;
+      height:40px;
+      z-index: 2;
+      text-align: center;
+      vertical-align: middle;
+    }
+    </style>
+  </head>
+  <body>
+    <div id="panel"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mapbox-gl/0.53.1/mapbox-gl.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/deck.gl@7.0.0/dist.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.13.0/d3.min.js"></script>
+    <script type="text/javascript">
+        const colorRange = [
+          [1, 152, 189],
+          [73, 227, 206],
+          [216, 254, 181],
+          [254, 237, 177],
+          [254, 173, 84],
+          [209, 55, 78]
+        ];
+        const coverage = 0.8;
+        const upperPercentile = 100
+        const LAT = 34.6;
+        const LNG = 135.5;
+        const year = ["2015","2020","2025","2030","2035","2040","2045","2050"];
+        let it = 0;
+        const deckgl = new deck.DeckGL({
+            mapboxApiAccessToken: " ※mapbox api access tokenをセット※",
+            mapStyle: "mapbox://styles/mapbox/dark-v9",
+            longitude: LNG,
+            latitude: LAT,
+            zoom: 10,
+            pitch: 40,
+            bearing: -10
+        });
+        const loadData = () => {
+            d3.json("osaka_jinko.geojson", (error, response) => {
+                data = [];
+                let n = response.features.length;
+                for(let i = 0; i < n ; i++){
+                    data.push(getlatlon(response.features[i]));
+                }
+                const update = () => {
+                    if( it >= year.length){
+                        stop();
+                    }else{
+                        $("#panel").text(year[it]);
+                        deckgl.setProps({
+                             layers: []
+                        });
+                        renderLayer(data);
+                    }
+                    it++;
+                };
+                let anime = setInterval(update,2000);
+                const stop = () =>{
+                    clearInterval(anime);
+                };
+            });
+        };
+        const renderLayer = (data) => {
+            const hexagonLayer = new deck.HexagonLayer({
+                id: "heatmap",
+                colorRange,
+                coverage,
+                data,
+                getColorValue:getValue,
+                getElevationValue:getValue,
+                elevationRange: [0, 5000],
+                elevationScale: 4,
+                extruded: true,
+                getPosition: d => d,
+                opacity: 1.0,
+                pickable: false,
+                radius: 500,
+                upperPercentile
+            });
+            deckgl.setProps({
+                layers: [hexagonLayer]
+            });
+        };
+        const getlatlon=(feature) =>{
+            let geo = feature.geometry.coordinates[0][0];
+            let pro = feature.properties;
+            let lat = 0, lon = 0;
+            for(let i = 0; i < 4; i++){
+              lon += Number(geo[i][0]);
+              lat += Number(geo[i][1]);
+            }
+            lat /= 4;
+            lon /= 4;
+            const val = {
+              "2015": pro.PTN_2015,
+              "2020": pro.PTN_2020,
+              "2025": pro.PTN_2025,
+              "2030": pro.PTN_2030,
+              "2035": pro.PTN_2035,
+              "2040": pro.PTN_2040,
+              "2045": pro.PTN_2045,
+              "2050": pro.PTN_2050
+            };
+            return [lon,lat,val];
+        };
+        const getValue = (d) => {
+            return d[0][2][year[it]];
+        };
+        loadData();
+    </script>
+  </body>
+</html>
